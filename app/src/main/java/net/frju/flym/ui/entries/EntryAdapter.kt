@@ -65,9 +65,9 @@ class EntryAdapter(var displayThumbnails: Boolean, private val globalClickListen
             doAsync {
                 val mainImgUrl = if (TextUtils.isEmpty(entryWithFeed.entry.imageLink)) null else FetcherService.getDownloadedOrDistantImageUrl(entryWithFeed.entry.id, entryWithFeed.entry.imageLink!!)
                 uiThread {
-                    val letterDrawable = Feed.getLetterDrawable(entryWithFeed.entry.feedId, entryWithFeed.feedTitle)
+                    val letterDrawable = Feed.getLetterDrawable(entryWithFeed.entry.feedId, entryWithFeed.feedTitle, true)
                     if (mainImgUrl != null) {
-                        GlideApp.with(context).load(mainImgUrl).centerCrop().transition(withCrossFade(CROSS_FADE_FACTORY)).placeholder(letterDrawable).error(letterDrawable).into(main_icon)
+                        GlideApp.with(context).load(mainImgUrl).centerCrop().circleCrop().transition(withCrossFade(CROSS_FADE_FACTORY)).placeholder(letterDrawable).error(letterDrawable).into(main_icon)
                     } else {
                         GlideApp.with(context).clear(main_icon)
                         main_icon.setImageDrawable(letterDrawable)
