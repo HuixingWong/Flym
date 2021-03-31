@@ -12,6 +12,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.text.HtmlCompat
 import androidx.core.text.toSpannable
 import androidx.fragment.app.Fragment
@@ -114,7 +115,11 @@ class FeedSearchFragment : Fragment(), AdapterView.OnItemClickListener {
                         for (i in 0 until entries.length()) {
                             try {
                                 val entry = entries.get(i) as JSONObject
-                                val url = entry.get(FEED_SEARCH_URL).toString().replace("feed/", "")
+                                val url = entry.get(FEED_SEARCH_URL).toString()
+                                    .replace("feed/", "")
+                                    .toUri().run {
+                                        buildUpon().scheme("https").build()
+                                    }.toString()
                                 if (url.isNotEmpty() && !FEED_SEARCH_BLACKLIST.contains(url)) {
                                     val feedTitle = HtmlCompat.fromHtml(entry.get(FEED_SEARCH_TITLE).toString(), HtmlCompat.FROM_HTML_MODE_LEGACY).toString()
                                     val feedDescription = HtmlCompat.fromHtml(entry.get(FEED_SEARCH_DESC).toString(), HtmlCompat.FROM_HTML_MODE_LEGACY).toString()
