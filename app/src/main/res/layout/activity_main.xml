@@ -8,11 +8,17 @@
     tools:openDrawer="start"
     android:background="?attr/colorPrimary">
 
-    <net.frju.flym.ui.main.ContainersLayout
-        android:id="@+id/containers_layout"
+    <com.drakeet.drawer.FullDraggableContainer
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="?attr/colorBackground" />
+        android:layout_height="match_parent">
+
+        <net.frju.flym.ui.main.ContainersLayout
+            android:id="@+id/containers_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="?attr/colorBackground" />
+
+    </com.drakeet.drawer.FullDraggableContainer>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/drawer_content"

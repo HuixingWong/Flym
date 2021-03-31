@@ -122,6 +122,7 @@ dependencies {
     implementation 'net.dankito.readability4j:readability4j:1.0.5'
     implementation 'pub.devrel:easypermissions:3.0.0'
     implementation 'com.rometools:rome-opml:1.15.0'
+    implementation 'com.drakeet.drawer:drawer:1.0.3'
 
     testImplementation 'junit:junit:4.13.1'
 }

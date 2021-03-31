@@ -490,7 +490,7 @@ class EntriesFragment : Fragment(R.layout.fragment_entries) {
         }
 
         // attaching the touch helper to recycler view
-        ItemTouchHelper(itemTouchHelperCallback).attachToRecyclerView(recycler_view)
+//        ItemTouchHelper(itemTouchHelperCallback).attachToRecyclerView(recycler_view)
 
         recycler_view.emptyView = empty_view
 
