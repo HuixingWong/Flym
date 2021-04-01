@@ -10,12 +10,8 @@
         android:layout_margin="16dp"
         android:text="@string/discover_search_hint"
         android:textSize="18sp" />
-
-    <GridView
-        android:id="@+id/gv_topics"
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/compose_view"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:numColumns="@integer/discover_grid_columns"
-        android:layoutAnimation="@anim/grid_layout_animation_from_bottom" />
-
+        android:layout_height="match_parent"/>
 </LinearLayout>
