@@ -1,5 +1,4 @@
-[![API](https://img.shields.io/badge/API-21%2B-blue.svg?style=flat)](https://android-arsenal.com/api?level=21)
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/fredericjulian)
+# In secondary development
 
 # BEWARE:
 Google [added some restrictions](https://support.google.com/googleplay/android-developer/answer/10177647?visit_id=637410766788299017-71528281&rd=2#news) to news app and I don't see how Flym (and other RSS aggregators) could comply to that. For instance, Flym cannot provide a "valid and verifiable contact information" for the feed, nor it can assure that "each of the sources must meet News policy requirements".
