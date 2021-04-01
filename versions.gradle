@@ -62,3 +62,10 @@ libs.AndroidX.Lifecycle = [
         runtime: "androidx.lifecycle:lifecycle-runtime-ktx:$versions.lifecycle",
         viewmodel: "androidx.lifecycle:lifecycle-viewmodel-ktx:$versions.lifecycle",
 ]
+
+versions.coroutines = "1.4.3"
+libs.Coroutines = [
+        core: "org.jetbrains.kotlinx:kotlinx-coroutines-core:$versions.coroutines",
+        android: "org.jetbrains.kotlinx:kotlinx-coroutines-android:$versions.coroutines",
+        test: "org.jetbrains.kotlinx:kotlinx-coroutines-test:$versions.coroutines",
+]

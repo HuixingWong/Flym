@@ -25,6 +25,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -46,7 +47,6 @@ import kotlinx.android.synthetic.main.view_main_drawer_header.*
 import net.fred.feedex.R
 import net.frju.flym.App
 import net.frju.flym.data.entities.Feed
-import net.frju.flym.data.entities.FeedWithCount
 import net.frju.flym.data.utils.PrefConstants
 import net.frju.flym.service.AutoRefreshJobService
 import net.frju.flym.service.FetcherService
@@ -56,7 +56,6 @@ import net.frju.flym.ui.entries.EntriesFragment
 import net.frju.flym.ui.entrydetails.EntryDetailsActivity
 import net.frju.flym.ui.entrydetails.EntryDetailsFragment
 import net.frju.flym.ui.feeds.FeedAdapter
-import net.frju.flym.ui.feeds.FeedGroup
 import net.frju.flym.ui.feeds.FeedListEditActivity
 import net.frju.flym.ui.settings.SettingsActivity
 import net.frju.flym.utils.*
@@ -89,8 +88,9 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
         private const val INTENT_FAVORITES = "net.frju.flym.intent.FAVORITES"
     }
 
-    private val feedGroups = mutableListOf<FeedGroup>()
-    private val feedAdapter = FeedAdapter(feedGroups)
+    private val mainViewModel: MainViewModel by viewModels()
+
+    lateinit var  feedAdapter: FeedAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setupNoActionBarTheme()
@@ -98,6 +98,8 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
+
+        feedAdapter = FeedAdapter(mainViewModel.feedsData)
 
         more.onClick {
             it?.let { view ->
@@ -125,58 +127,41 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
             closeDrawer()
         }
 
-        App.db.feedDao().observeAllWithCount.observe(this@MainActivity, { nullableFeeds ->
-            nullableFeeds?.let { feeds ->
-                val newFeedGroups = mutableListOf<FeedGroup>()
+        mainViewModel.feedGroups.observe(this){
+            feedAdapter.notifyParentDataSetChanged(true)
+            if (mainViewModel.hasFetchingError()) {
+                drawer_hint.textColor = Color.RED
+                drawer_hint.textResource = R.string.drawer_fetch_error_explanation
+                toolbar.setNavigationIcon(R.drawable.ic_menu_red_highlight_24dp)
+            } else {
+                drawer_hint.textColor = Color.WHITE
+                drawer_hint.textResource = R.string.drawer_explanation
+                toolbar.setNavigationIcon(R.drawable.ic_menu_24dp)
+            }
+        }
 
-                val all = FeedWithCount(feed = Feed().apply {
-                    id = Feed.ALL_ENTRIES_ID
-                    title = getString(R.string.all_entries)
-                }, entryCount = feeds.sumBy { it.entryCount })
-                newFeedGroups.add(FeedGroup(all, listOf()))
+        App.db.feedDao().observeAllWithCount.observe(this) {
+            mainViewModel.compareData(it)
+        }
 
-                val subFeedMap = feeds.groupBy { it.feed.groupId }
-
-                newFeedGroups.addAll(
-                        subFeedMap[null]?.map { FeedGroup(it, subFeedMap[it.feed.id].orEmpty()) }.orEmpty()
-                )
-
-                // Do not always call notifyParentDataSetChanged to avoid selection loss during refresh
-                if (hasFeedGroupsChanged(feedGroups, newFeedGroups)) {
-                    feedGroups.clear()
-                    feedGroups += newFeedGroups
-                    feedAdapter.notifyParentDataSetChanged(true)
-
-                    if (hasFetchingError()) {
-                        drawer_hint.textColor = Color.RED
-                        drawer_hint.textResource = R.string.drawer_fetch_error_explanation
-                        toolbar.setNavigationIcon(R.drawable.ic_menu_red_highlight_24dp)
-                    } else {
-                        drawer_hint.textColor = Color.WHITE
-                        drawer_hint.textResource = R.string.drawer_explanation
-                        toolbar.setNavigationIcon(R.drawable.ic_menu_24dp)
-                    }
-                }
-
-                feedAdapter.onFeedClick { _, feedWithCount ->
-                    goToEntriesList(feedWithCount.feed)
-                    closeDrawer()
-                }
-
-                feedAdapter.onFeedLongClick { view, feedWithCount ->
-                    PopupMenu(this, view).apply {
-                        setOnMenuItemClickListener { item ->
-                            when (item.itemId) {
-                                R.id.mark_all_as_read -> doAsync {
-                                    when {
-                                        feedWithCount.feed.id == Feed.ALL_ENTRIES_ID -> App.db.entryDao().markAllAsRead()
-                                        feedWithCount.feed.isGroup -> App.db.entryDao().markGroupAsRead(feedWithCount.feed.id)
-                                        else -> App.db.entryDao().markAsRead(feedWithCount.feed.id)
-                                    }
-                                }
-                                R.id.edit_feed -> {
-                                    @SuppressLint("InflateParams")
-                                    val input = layoutInflater.inflate(R.layout.dialog_edit_feed, null, false).apply {
+        feedAdapter.onFeedLongClick { view, feedWithCount ->
+            PopupMenu(this, view).apply {
+                setOnMenuItemClickListener { item ->
+                    when (item.itemId) {
+                        R.id.mark_all_as_read -> doAsync {
+                            when {
+                                feedWithCount.feed.id == Feed.ALL_ENTRIES_ID -> App.db.entryDao()
+                                    .markAllAsRead()
+                                feedWithCount.feed.isGroup -> App.db.entryDao()
+                                    .markGroupAsRead(feedWithCount.feed.id)
+                                else -> App.db.entryDao().markAsRead(feedWithCount.feed.id)
+                            }
+                        }
+                        R.id.edit_feed -> {
+                            @SuppressLint("InflateParams")
+                            val input =
+                                layoutInflater.inflate(R.layout.dialog_edit_feed, null, false)
+                                    .apply {
                                         feed_name.setText(feedWithCount.feed.title)
                                         if (feedWithCount.feed.isGroup) {
                                             feed_link.isGone = true
@@ -185,66 +170,74 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
                                         }
                                     }
 
-                                    AlertDialog.Builder(this@MainActivity)
-                                            .setTitle(R.string.menu_edit_feed)
-                                            .setView(input)
-                                            .setPositiveButton(android.R.string.ok) { _, _ ->
-                                                val newName = input.feed_name.text.toString()
-                                                val newLink = input.feed_link.text.toString()
-                                                if (newName.isNotBlank() && (newLink.isNotBlank() || feedWithCount.feed.isGroup)) {
-                                                    doAsync {
-                                                        // Need to do a copy to not directly modify the memory and being able to detect changes
-                                                        val newFeed = feedWithCount.feed.copy().apply {
-                                                            title = newName
-                                                            if (!feedWithCount.feed.isGroup) {
-                                                                link = newLink
-                                                            }
-                                                        }
-                                                        App.db.feedDao().update(newFeed)
-                                                    }
+                            AlertDialog.Builder(this@MainActivity)
+                                .setTitle(R.string.menu_edit_feed)
+                                .setView(input)
+                                .setPositiveButton(android.R.string.ok) { _, _ ->
+                                    val newName = input.feed_name.text.toString()
+                                    val newLink = input.feed_link.text.toString()
+                                    if (newName.isNotBlank() && (newLink.isNotBlank() || feedWithCount.feed.isGroup)) {
+                                        doAsync {
+                                            // Need to do a copy to not directly modify the memory and being able to detect changes
+                                            val newFeed = feedWithCount.feed.copy().apply {
+                                                title = newName
+                                                if (!feedWithCount.feed.isGroup) {
+                                                    link = newLink
                                                 }
                                             }
-                                            .setNegativeButton(android.R.string.cancel, null)
-                                            .show()
+                                            App.db.feedDao().update(newFeed)
+                                        }
+                                    }
                                 }
-                                R.id.reorder -> startActivity<FeedListEditActivity>()
-                                R.id.delete -> {
-                                    AlertDialog.Builder(this@MainActivity)
-                                            .setTitle(feedWithCount.feed.title)
-                                            .setMessage(if (feedWithCount.feed.isGroup) R.string.question_delete_group else R.string.question_delete_feed)
-                                            .setPositiveButton(android.R.string.ok) { _, _ ->
-                                                doAsync { App.db.feedDao().delete(feedWithCount.feed) }
-                                            }.setNegativeButton(android.R.string.cancel, null)
-                                            .show()
-                                }
-                                R.id.enable_full_text_retrieval -> doAsync { App.db.feedDao().enableFullTextRetrieval(feedWithCount.feed.id) }
-                                R.id.disable_full_text_retrieval -> doAsync { App.db.feedDao().disableFullTextRetrieval(feedWithCount.feed.id) }
-                            }
-                            true
+                                .setNegativeButton(android.R.string.cancel, null)
+                                .show()
                         }
-                        inflate(R.menu.menu_drawer_feed)
-
-                        when {
-                            feedWithCount.feed.id == Feed.ALL_ENTRIES_ID -> {
-                                menu.findItem(R.id.edit_feed).isVisible = false
-                                menu.findItem(R.id.delete).isVisible = false
-                                menu.findItem(R.id.reorder).isVisible = false
-                                menu.findItem(R.id.enable_full_text_retrieval).isVisible = false
-                                menu.findItem(R.id.disable_full_text_retrieval).isVisible = false
-                            }
-                            feedWithCount.feed.isGroup -> {
-                                menu.findItem(R.id.enable_full_text_retrieval).isVisible = false
-                                menu.findItem(R.id.disable_full_text_retrieval).isVisible = false
-                            }
-                            feedWithCount.feed.retrieveFullText -> menu.findItem(R.id.enable_full_text_retrieval).isVisible = false
-                            else -> menu.findItem(R.id.disable_full_text_retrieval).isVisible = false
+                        R.id.reorder -> startActivity<FeedListEditActivity>()
+                        R.id.delete -> {
+                            AlertDialog.Builder(this@MainActivity)
+                                .setTitle(feedWithCount.feed.title)
+                                .setMessage(if (feedWithCount.feed.isGroup) R.string.question_delete_group else R.string.question_delete_feed)
+                                .setPositiveButton(android.R.string.ok) { _, _ ->
+                                    doAsync { App.db.feedDao().delete(feedWithCount.feed) }
+                                }.setNegativeButton(android.R.string.cancel, null)
+                                .show()
                         }
-
-                        show()
+                        R.id.enable_full_text_retrieval -> doAsync {
+                            App.db.feedDao().enableFullTextRetrieval(feedWithCount.feed.id)
+                        }
+                        R.id.disable_full_text_retrieval -> doAsync {
+                            App.db.feedDao().disableFullTextRetrieval(feedWithCount.feed.id)
+                        }
                     }
+                    true
                 }
+                inflate(R.menu.menu_drawer_feed)
+
+                when {
+                    feedWithCount.feed.id == Feed.ALL_ENTRIES_ID -> {
+                        menu.findItem(R.id.edit_feed).isVisible = false
+                        menu.findItem(R.id.delete).isVisible = false
+                        menu.findItem(R.id.reorder).isVisible = false
+                        menu.findItem(R.id.enable_full_text_retrieval).isVisible = false
+                        menu.findItem(R.id.disable_full_text_retrieval).isVisible = false
+                    }
+                    feedWithCount.feed.isGroup -> {
+                        menu.findItem(R.id.enable_full_text_retrieval).isVisible = false
+                        menu.findItem(R.id.disable_full_text_retrieval).isVisible = false
+                    }
+                    feedWithCount.feed.retrieveFullText -> menu.findItem(R.id.enable_full_text_retrieval).isVisible =
+                        false
+                    else -> menu.findItem(R.id.disable_full_text_retrieval).isVisible = false
+                }
+
+                show()
             }
-        })
+        }
+
+        feedAdapter.onFeedClick { _, feedWithCount ->
+            goToEntriesList(feedWithCount.feed)
+            closeDrawer()
+        }
 
         if (savedInstanceState == null) {
             // First open => we open the drawer for you
@@ -335,9 +328,11 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
         }
 
         // If we just clicked on the notification, let's go back to the default view
-        if (intent?.getBooleanExtra(EXTRA_FROM_NOTIF, false) == true && feedGroups.isNotEmpty()) {
+        if (intent?.getBooleanExtra(EXTRA_FROM_NOTIF, false) == true &&
+            mainViewModel.feedGroups.value?.isNotEmpty() == true
+        ) {
             feedAdapter.selectedItemId = Feed.ALL_ENTRIES_ID
-            goToEntriesList(feedGroups[0].feedWithCount.feed)
+            goToEntriesList(mainViewModel.feedGroups.value!![0].feedWithCount.feed)
             bottom_navigation.selectedItemId = R.id.unreads
         }
     }
@@ -388,6 +383,7 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         // Forward results to EasyPermissions
         EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this)
     }
@@ -465,32 +461,6 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
                 browse(url)
             }
         }
-    }
-
-    private fun hasFeedGroupsChanged(feedGroups: List<FeedGroup>, newFeedGroups: List<FeedGroup>): Boolean {
-        if (feedGroups != newFeedGroups) {
-            return true
-        }
-
-        // Also need to check all sub groups (can't be checked in FeedGroup's equals)
-        feedGroups.forEachIndexed { index, feedGroup ->
-            if (feedGroup.feedWithCount != newFeedGroups[index].feedWithCount || feedGroup.subFeeds != newFeedGroups[index].subFeeds) {
-                return true
-            }
-        }
-
-        return false
-    }
-
-    private fun hasFetchingError(): Boolean {
-        // Also need to check all sub groups (can't be checked in FeedGroup's equals)
-        feedGroups.forEach { feedGroup ->
-            if (feedGroup.feedWithCount.feed.fetchError || feedGroup.subFeeds.any { it.feed.fetchError }) {
-                return true
-            }
-        }
-
-        return false
     }
 
     private fun pickOpml() {

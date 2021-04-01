@@ -97,7 +97,7 @@ dependencies {
     def lifecycle_version = "2.2.0"
     implementation "androidx.lifecycle:lifecycle-extensions:$lifecycle_version"
 
-    def room_version = "2.2.5"
+    def room_version = "2.3.0-beta03"
     implementation "androidx.room:room-runtime:$room_version"
     kapt "androidx.room:room-compiler:$room_version"
 
@@ -155,6 +155,9 @@ dependencies {
 
     implementation Libs.AndroidX.Lifecycle.viewmodel
     implementation Libs.AndroidX.Lifecycle.runtime
+
+    implementation Libs.Coroutines.core
+    implementation Libs.Coroutines.android
 
     testImplementation 'junit:junit:4.13.1'
 }

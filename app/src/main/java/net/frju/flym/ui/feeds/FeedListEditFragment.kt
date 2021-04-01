@@ -90,19 +90,19 @@ class FeedListEditFragment : Fragment() {
             }
         }
 
-        App.db.feedDao().observeAllWithCount.observe(this, Observer { nullableFeeds ->
-            nullableFeeds?.let { feeds ->
-                feedGroups.clear()
-
-                val subFeedMap = feeds.groupBy { it.feed.groupId }
-
-                feedGroups.addAll(
-                        subFeedMap[null]?.map { FeedGroup(it, subFeedMap[it.feed.id].orEmpty()) }.orEmpty()
-                )
-
-                feedAdapter.notifyParentDataSetChanged(true)
-            }
-        })
+//        App.db.feedDao().observeAllWithCount.observe(this, Observer { nullableFeeds ->
+//            nullableFeeds?.let { feeds ->
+//                feedGroups.clear()
+//
+//                val subFeedMap = feeds.groupBy { it.feed.groupId }
+//
+//                feedGroups.addAll(
+//                        subFeedMap[null]?.map { FeedGroup(it, subFeedMap[it.feed.id].orEmpty()) }.orEmpty()
+//                )
+//
+//                feedAdapter.notifyParentDataSetChanged(true)
+//            }
+//        })
 
         setHasOptionsMenu(true)
 
