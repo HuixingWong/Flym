@@ -35,3 +35,30 @@ libs.AndroidX.Compose = [
         test: "androidx.compose.ui:ui-test-junit4:$versions.compose",
         viewbinding: "androidx.compose.ui:ui-viewbinding:$versions.compose"
 ]
+
+versions.androidxhilt = "1.0.0-beta01"
+libs.AndroidX.Hilt = [
+        work: "androidx.hilt:hilt-work:$versions.androidxhilt",
+        compiler: "androidx.hilt:hilt-compiler:$versions.androidxhilt",
+        compose: "androidx.hilt:hilt-navigation-compose:1.0.0-alpha01",
+]
+
+versions.dagger = "2.33"
+libs.Dagger = [
+        dagger: "com.google.dagger:dagger:$versions.dagger",
+        compiler: "com.google.dagger:dagger-compiler:$versions.dagger",
+]
+
+versions.hilt = "2.33-beta"
+libs.Hilt = [
+        library: "com.google.dagger:hilt-android:$versions.hilt",
+        compiler: "com.google.dagger:hilt-android-compiler:$versions.hilt",
+        testing: "com.google.dagger:hilt-android-testing:$versions.hilt",
+        gradlePlugin: "com.google.dagger:hilt-android-gradle-plugin:$versions.hilt",
+]
+
+versions.lifecycle = "2.3.0"
+libs.AndroidX.Lifecycle = [
+        runtime: "androidx.lifecycle:lifecycle-runtime-ktx:$versions.lifecycle",
+        viewmodel: "androidx.lifecycle:lifecycle-viewmodel-ktx:$versions.lifecycle",
+]

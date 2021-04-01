@@ -38,6 +38,7 @@ import com.rometools.opml.feed.opml.Outline
 import com.rometools.opml.io.impl.OPML20Generator
 import com.rometools.rome.io.WireFeedInput
 import com.rometools.rome.io.WireFeedOutput
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.dialog_edit_feed.view.*
 import kotlinx.android.synthetic.main.fragment_entries.*
@@ -66,7 +67,7 @@ import java.io.*
 import java.net.URL
 import java.util.*
 
-
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
 
     companion object {

@@ -42,6 +42,7 @@ import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.behavior.HideBottomViewOnScrollBehavior
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.snackbar.Snackbar
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.android.synthetic.main.fragment_entries.*
 import kotlinx.android.synthetic.main.fragment_entries.coordinator
 import kotlinx.android.synthetic.main.fragment_entries.refresh_layout
@@ -65,7 +66,7 @@ import q.rorbin.badgeview.Badge
 import q.rorbin.badgeview.QBadgeView
 import java.util.*
 
-
+@AndroidEntryPoint
 class EntriesFragment : Fragment(R.layout.fragment_entries) {
 
     companion object {
