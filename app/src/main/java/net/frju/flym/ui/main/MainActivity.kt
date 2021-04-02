@@ -17,14 +17,10 @@
 
 package net.frju.flym.ui.main
 
-import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
-import android.provider.OpenableColumns
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
@@ -33,12 +29,6 @@ import androidx.core.view.*
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.FragmentTransaction
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.rometools.opml.feed.opml.Attribute
-import com.rometools.opml.feed.opml.Opml
-import com.rometools.opml.feed.opml.Outline
-import com.rometools.opml.io.impl.OPML20Generator
-import com.rometools.rome.io.WireFeedInput
-import com.rometools.rome.io.WireFeedOutput
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.dialog_edit_feed.view.*
@@ -63,11 +53,10 @@ import org.jetbrains.anko.*
 import org.jetbrains.anko.sdk21.listeners.onClick
 import pub.devrel.easypermissions.EasyPermissions
 import java.io.*
-import java.net.URL
 import java.util.*
 
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
+class MainActivity : AppCompatActivity(), MainNavigator {
 
     companion object {
         const val EXTRA_FROM_NOTIF = "EXTRA_FROM_NOTIF"
@@ -77,11 +66,9 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
         private const val TAG_DETAILS = "TAG_DETAILS"
         private const val TAG_MASTER = "TAG_MASTER"
 
-        private const val OLD_GNEWS_TO_IGNORE = "http://news.google.com/news?"
 
         private const val WRITE_OPML_REQUEST_CODE = 2
         private const val READ_OPML_REQUEST_CODE = 3
-        private const val RETRIEVE_FULLTEXT_OPML_ATTR = "retrieveFullText"
 
         private const val INTENT_UNREADS = "net.frju.flym.intent.UNREADS"
         private const val INTENT_ALL = "net.frju.flym.intent.ALL"
@@ -90,7 +77,7 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
 
     private val mainViewModel: MainViewModel by viewModels()
 
-    lateinit var  feedAdapter: FeedAdapter
+    lateinit var feedAdapter: FeedAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setupNoActionBarTheme()
@@ -127,7 +114,7 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
             closeDrawer()
         }
 
-        mainViewModel.feedGroups.observe(this){
+        mainViewModel.feedGroups.observe(this) {
             feedAdapter.notifyParentDataSetChanged(true)
             if (mainViewModel.hasFetchingError()) {
                 drawer_hint.textColor = Color.RED
@@ -140,98 +127,12 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
             }
         }
 
-        App.db.feedDao().observeAllWithCount.observe(this) {
-            mainViewModel.compareData(it)
+        mainViewModel.toastValue.observe(this) {
+            toast(it)
         }
 
         feedAdapter.onFeedLongClick { view, feedWithCount ->
-            PopupMenu(this, view).apply {
-                setOnMenuItemClickListener { item ->
-                    when (item.itemId) {
-                        R.id.mark_all_as_read -> doAsync {
-                            when {
-                                feedWithCount.feed.id == Feed.ALL_ENTRIES_ID -> App.db.entryDao()
-                                    .markAllAsRead()
-                                feedWithCount.feed.isGroup -> App.db.entryDao()
-                                    .markGroupAsRead(feedWithCount.feed.id)
-                                else -> App.db.entryDao().markAsRead(feedWithCount.feed.id)
-                            }
-                        }
-                        R.id.edit_feed -> {
-                            @SuppressLint("InflateParams")
-                            val input =
-                                layoutInflater.inflate(R.layout.dialog_edit_feed, null, false)
-                                    .apply {
-                                        feed_name.setText(feedWithCount.feed.title)
-                                        if (feedWithCount.feed.isGroup) {
-                                            feed_link.isGone = true
-                                        } else {
-                                            feed_link.setText(feedWithCount.feed.link)
-                                        }
-                                    }
-
-                            AlertDialog.Builder(this@MainActivity)
-                                .setTitle(R.string.menu_edit_feed)
-                                .setView(input)
-                                .setPositiveButton(android.R.string.ok) { _, _ ->
-                                    val newName = input.feed_name.text.toString()
-                                    val newLink = input.feed_link.text.toString()
-                                    if (newName.isNotBlank() && (newLink.isNotBlank() || feedWithCount.feed.isGroup)) {
-                                        doAsync {
-                                            // Need to do a copy to not directly modify the memory and being able to detect changes
-                                            val newFeed = feedWithCount.feed.copy().apply {
-                                                title = newName
-                                                if (!feedWithCount.feed.isGroup) {
-                                                    link = newLink
-                                                }
-                                            }
-                                            App.db.feedDao().update(newFeed)
-                                        }
-                                    }
-                                }
-                                .setNegativeButton(android.R.string.cancel, null)
-                                .show()
-                        }
-                        R.id.reorder -> startActivity<FeedListEditActivity>()
-                        R.id.delete -> {
-                            AlertDialog.Builder(this@MainActivity)
-                                .setTitle(feedWithCount.feed.title)
-                                .setMessage(if (feedWithCount.feed.isGroup) R.string.question_delete_group else R.string.question_delete_feed)
-                                .setPositiveButton(android.R.string.ok) { _, _ ->
-                                    doAsync { App.db.feedDao().delete(feedWithCount.feed) }
-                                }.setNegativeButton(android.R.string.cancel, null)
-                                .show()
-                        }
-                        R.id.enable_full_text_retrieval -> doAsync {
-                            App.db.feedDao().enableFullTextRetrieval(feedWithCount.feed.id)
-                        }
-                        R.id.disable_full_text_retrieval -> doAsync {
-                            App.db.feedDao().disableFullTextRetrieval(feedWithCount.feed.id)
-                        }
-                    }
-                    true
-                }
-                inflate(R.menu.menu_drawer_feed)
-
-                when {
-                    feedWithCount.feed.id == Feed.ALL_ENTRIES_ID -> {
-                        menu.findItem(R.id.edit_feed).isVisible = false
-                        menu.findItem(R.id.delete).isVisible = false
-                        menu.findItem(R.id.reorder).isVisible = false
-                        menu.findItem(R.id.enable_full_text_retrieval).isVisible = false
-                        menu.findItem(R.id.disable_full_text_retrieval).isVisible = false
-                    }
-                    feedWithCount.feed.isGroup -> {
-                        menu.findItem(R.id.enable_full_text_retrieval).isVisible = false
-                        menu.findItem(R.id.disable_full_text_retrieval).isVisible = false
-                    }
-                    feedWithCount.feed.retrieveFullText -> menu.findItem(R.id.enable_full_text_retrieval).isVisible =
-                        false
-                    else -> menu.findItem(R.id.disable_full_text_retrieval).isVisible = false
-                }
-
-                show()
-            }
+            longClickPop(view, feedWithCount)
         }
 
         feedAdapter.onFeedClick { _, feedWithCount ->
@@ -255,9 +156,11 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
 
         if (getPrefBoolean(PrefConstants.REFRESH_ON_STARTUP, defValue = true)) {
             try { // Some people seems to sometimes have a IllegalStateException on this
-                startService(Intent(this, FetcherService::class.java)
+                startService(
+                    Intent(this, FetcherService::class.java)
                         .setAction(FetcherService.ACTION_REFRESH_FEEDS)
-                        .putExtra(FetcherService.FROM_AUTO_REFRESH, true))
+                        .putExtra(FetcherService.FROM_AUTO_REFRESH, true)
+                )
             } catch (t: Throwable) {
                 // Nothing to do, the refresh can still be triggered manually
             }
@@ -281,7 +184,8 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
                 }
                 drawer_content.updatePadding(left = systemInsets.left)
                 drawer_content.updateLayoutParams<DrawerLayout.LayoutParams> {
-                    width = resources.getDimensionPixelSize(R.dimen.nav_drawer_width) + systemInsets.left
+                    width =
+                        resources.getDimensionPixelSize(R.dimen.nav_drawer_width) + systemInsets.left
                 }
                 insets
             }
@@ -382,7 +286,11 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
         feedAdapter.onSaveInstanceState(outState)
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         // Forward results to EasyPermissions
         EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this)
@@ -409,10 +317,10 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
         } else {
             val master = EntriesFragment.newInstance(feed)
             supportFragmentManager
-                    .beginTransaction()
-                    .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-                    .replace(R.id.frame_master, master, TAG_MASTER)
-                    .commitAllowingStateLoss()
+                .beginTransaction()
+                .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+                .replace(R.id.frame_master, master, TAG_MASTER)
+                .commitAllowingStateLoss()
         }
     }
 
@@ -425,24 +333,30 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
             containers_layout.state = MainNavigator.State.TWO_COLUMNS_WITH_DETAILS
             val fragment = EntryDetailsFragment.newInstance(entryId, allEntryIds)
             supportFragmentManager
-                    .beginTransaction()
-                    .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-                    .replace(R.id.frame_details, fragment, TAG_DETAILS)
-                    .commitAllowingStateLoss()
+                .beginTransaction()
+                .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+                .replace(R.id.frame_details, fragment, TAG_DETAILS)
+                .commitAllowingStateLoss()
 
-            val listFragment = supportFragmentManager.findFragmentById(R.id.frame_master) as EntriesFragment
+            val listFragment =
+                supportFragmentManager.findFragmentById(R.id.frame_master) as EntriesFragment
             listFragment.setSelectedEntryId(entryId)
         } else {
             if (getPrefBoolean(PrefConstants.OPEN_BROWSER_DIRECTLY, false)) {
                 openInBrowser(entryId)
             } else {
-                startActivity<EntryDetailsActivity>(EntryDetailsFragment.ARG_ENTRY_ID to entryId, EntryDetailsFragment.ARG_ALL_ENTRIES_IDS to allEntryIds.take(500)) // take() to avoid TransactionTooLargeException
+                startActivity<EntryDetailsActivity>(
+                    EntryDetailsFragment.ARG_ENTRY_ID to entryId,
+                    EntryDetailsFragment.ARG_ALL_ENTRIES_IDS to allEntryIds.take(500)
+                )
+                // take() to avoid TransactionTooLargeException
             }
         }
     }
 
     override fun setSelectedEntryId(selectedEntryId: String) {
-        val listFragment = supportFragmentManager.findFragmentById(R.id.frame_master) as EntriesFragment
+        val listFragment =
+            supportFragmentManager.findFragmentById(R.id.frame_master) as EntriesFragment
         listFragment.setSelectedEntryId(selectedEntryId)
     }
 
@@ -484,111 +398,13 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
         super.onActivityResult(requestCode, resultCode, resultData)
 
         if (requestCode == READ_OPML_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            resultData?.data?.also { uri -> importOpml(uri) }
+            resultData?.data?.also { uri -> mainViewModel.importOpml(uri) }
         } else if (requestCode == WRITE_OPML_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            resultData?.data?.also { uri -> exportOpml(uri) }
+            resultData?.data?.also { uri -> mainViewModel.exportOpml(uri) }
         }
     }
 
-    private fun importOpml(uri: Uri) {
-        doAsync {
-            try {
-                InputStreamReader(contentResolver.openInputStream(uri)!!).use { reader -> parseOpml(reader) }
-            } catch (e: Exception) {
-                try {
-                    // We try to remove the opml version number, it may work better in some cases
-                    val content = BufferedInputStream(contentResolver.openInputStream(uri)!!).bufferedReader().use { it.readText() }
-                    val fixedReader = StringReader(content.replace("<opml version=['\"][0-9]\\.[0-9]['\"]>".toRegex(), "<opml>"))
-                    parseOpml(fixedReader)
-                } catch (e: Exception) {
-                    uiThread { toast(R.string.cannot_find_feeds) }
-                }
-            }
-        }
-    }
 
-    private fun exportOpml(uri: Uri) {
-        doAsync {
-            try {
-                OutputStreamWriter(contentResolver.openOutputStream(uri)!!, Charsets.UTF_8).use { writer -> exportOpml(writer) }
-                contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val fileName = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME))
-                        uiThread { toast(String.format(getString(R.string.message_exported_to), fileName)) }
-                    }
-                }
-            } catch (e: Exception) {
-                uiThread { toast(R.string.error_feed_export) }
-            }
-        }
-    }
-
-    private fun parseOpml(opmlReader: Reader) {
-        var genId = 1L
-        val feedList = mutableListOf<Feed>()
-        val opml = WireFeedInput().build(opmlReader) as Opml
-        opml.outlines.forEach { outline ->
-            if (outline.xmlUrl != null || outline.children.isNotEmpty()) {
-                val topLevelFeed = Feed().apply {
-                    id = genId++
-                    title = outline.title
-                }
-
-                if (outline.xmlUrl != null) {
-                    if (!outline.xmlUrl.startsWith(OLD_GNEWS_TO_IGNORE)) {
-                        topLevelFeed.link = outline.xmlUrl
-                        topLevelFeed.retrieveFullText = outline.getAttributeValue(RETRIEVE_FULLTEXT_OPML_ATTR) == "true"
-                        feedList.add(topLevelFeed)
-                    }
-                } else {
-                    topLevelFeed.isGroup = true
-                    feedList.add(topLevelFeed)
-
-                    outline.children.filter { it.xmlUrl != null && !it.xmlUrl.startsWith(OLD_GNEWS_TO_IGNORE) }.forEach {
-                        val subLevelFeed = Feed().apply {
-                            id = genId++
-                            title = it.title
-                            link = it.xmlUrl
-                            retrieveFullText = it.getAttributeValue(RETRIEVE_FULLTEXT_OPML_ATTR) == "true"
-                            groupId = topLevelFeed.id
-                        }
-
-                        feedList.add(subLevelFeed)
-                    }
-                }
-            }
-        }
-
-        if (feedList.isNotEmpty()) {
-            App.db.feedDao().insert(*feedList.toTypedArray())
-        }
-    }
-
-    private fun exportOpml(opmlWriter: Writer) {
-        val feeds = App.db.feedDao().all.groupBy { it.groupId }
-
-        val opml = Opml().apply {
-            feedType = OPML20Generator().type
-            encoding = "utf-8"
-            created = Date()
-            outlines = feeds[null]?.map { feed ->
-                Outline(feed.title, if (feed.link.isNotBlank()) URL(feed.link) else null, null).apply {
-                    children = feeds[feed.id]?.map {
-                        Outline(it.title, if (it.link.isNotBlank()) URL(it.link) else null, null).apply {
-                            if (it.retrieveFullText) {
-                                attributes.add(Attribute(RETRIEVE_FULLTEXT_OPML_ATTR, "true"))
-                            }
-                        }
-                    }
-                    if (feed.retrieveFullText) {
-                        attributes.add(Attribute(RETRIEVE_FULLTEXT_OPML_ATTR, "true"))
-                    }
-                }
-            }
-        }
-
-        WireFeedOutput().output(opml, opmlWriter)
-    }
 
     private fun closeDrawer() {
         if (drawer?.isDrawerOpen(GravityCompat.START) == true) {
@@ -611,7 +427,9 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
     }
 
     private fun goBack(): Boolean {
-        if (containers_layout.state != MainNavigator.State.TWO_COLUMNS_WITH_DETAILS || containers_layout.hasTwoColumns()) return false
+        if (containers_layout.state != MainNavigator.State.TWO_COLUMNS_WITH_DETAILS ||
+            containers_layout.hasTwoColumns()
+        ) return false
         if (clearDetails()) {
             containers_layout.state = MainNavigator.State.TWO_COLUMNS_EMPTY
             return true
@@ -622,10 +440,10 @@ class MainActivity : AppCompatActivity(), MainNavigator, AnkoLogger {
     private fun clearDetails(): Boolean {
         supportFragmentManager.findFragmentByTag(TAG_DETAILS)?.let {
             supportFragmentManager
-                    .beginTransaction()
-                    .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-                    .remove(it)
-                    .commitAllowingStateLoss()
+                .beginTransaction()
+                .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+                .remove(it)
+                .commitAllowingStateLoss()
             return true
         }
         return false

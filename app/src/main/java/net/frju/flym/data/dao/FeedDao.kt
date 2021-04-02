@@ -24,6 +24,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import net.frju.flym.data.entities.Feed
 import net.frju.flym.data.entities.FeedWithCount
 
@@ -44,7 +45,7 @@ abstract class FeedDao {
     abstract val observeAll: LiveData<List<Feed>>
 
     @get:Query("SELECT *, $ENTRY_COUNT AS entryCount FROM feeds AS f ORDER BY groupId DESC, displayPriority ASC, feedId ASC")
-    abstract val observeAllWithCount: LiveData<List<FeedWithCount>>
+    abstract val observeAllWithCount: Flow<List<FeedWithCount>>
 
     @Query("SELECT * FROM feeds WHERE feedId IS :id LIMIT 1")
     abstract fun findById(id: Long): Feed?
