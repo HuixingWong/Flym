@@ -24,11 +24,11 @@ import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
+import androidx.compose.material.MaterialTheme
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.*
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.FragmentTransaction
-import androidx.recyclerview.widget.LinearLayoutManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.dialog_edit_feed.view.*
@@ -45,8 +45,8 @@ import net.frju.flym.ui.discover.DiscoverActivity
 import net.frju.flym.ui.entries.EntriesFragment
 import net.frju.flym.ui.entrydetails.EntryDetailsActivity
 import net.frju.flym.ui.entrydetails.EntryDetailsFragment
-import net.frju.flym.ui.feeds.FeedAdapter
 import net.frju.flym.ui.feeds.FeedListEditActivity
+import net.frju.flym.ui.feeds.MainDrawerList
 import net.frju.flym.ui.settings.SettingsActivity
 import net.frju.flym.utils.*
 import org.jetbrains.anko.*
@@ -77,7 +77,6 @@ class MainActivity : AppCompatActivity(), MainNavigator {
 
     private val mainViewModel: MainViewModel by viewModels()
 
-    lateinit var feedAdapter: FeedAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setupNoActionBarTheme()
@@ -86,7 +85,6 @@ class MainActivity : AppCompatActivity(), MainNavigator {
 
         setContentView(R.layout.activity_main)
 
-        feedAdapter = FeedAdapter(mainViewModel.feedsData)
 
         more.onClick {
             it?.let { view ->
@@ -106,8 +104,20 @@ class MainActivity : AppCompatActivity(), MainNavigator {
                 }
             }
         }
-        nav.layoutManager = LinearLayoutManager(this)
-        nav.adapter = feedAdapter
+
+        composeList.setContent {
+            MaterialTheme {
+                MainDrawerList(
+                    onclick = {
+                        goToEntriesList(it.feed)
+                        closeDrawer()
+                    },
+                    onLongClick = {
+                        longClickPop(composeList, it)
+                    }
+                )
+            }
+        }
 
         add_feed_fab.onClick {
             goToFeedSearch()
@@ -115,7 +125,6 @@ class MainActivity : AppCompatActivity(), MainNavigator {
         }
 
         mainViewModel.feedGroups.observe(this) {
-            feedAdapter.notifyParentDataSetChanged(true)
             if (mainViewModel.hasFetchingError()) {
                 drawer_hint.textColor = Color.RED
                 drawer_hint.textResource = R.string.drawer_fetch_error_explanation
@@ -129,15 +138,6 @@ class MainActivity : AppCompatActivity(), MainNavigator {
 
         mainViewModel.toastValue.observe(this) {
             toast(it)
-        }
-
-        feedAdapter.onFeedLongClick { view, feedWithCount ->
-            longClickPop(view, feedWithCount)
-        }
-
-        feedAdapter.onFeedClick { _, feedWithCount ->
-            goToEntriesList(feedWithCount.feed)
-            closeDrawer()
         }
 
         if (savedInstanceState == null) {
@@ -175,9 +175,8 @@ class MainActivity : AppCompatActivity(), MainNavigator {
         super.onStart()
 
         if (getPrefBoolean(PrefConstants.HIDE_NAVIGATION_ON_SCROLL, false)) {
-            ViewCompat.setOnApplyWindowInsetsListener(nav) { _, insets ->
+            ViewCompat.setOnApplyWindowInsetsListener(composeList) { _, insets ->
                 val systemInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-                nav.updatePadding(bottom = systemInsets.bottom)
                 drawer.updatePadding(left = systemInsets.left, right = systemInsets.right)
                 guideline.updateLayoutParams<ConstraintLayout.LayoutParams> {
                     guideBegin = systemInsets.top
@@ -190,8 +189,6 @@ class MainActivity : AppCompatActivity(), MainNavigator {
                 insets
             }
         } else {
-            ViewCompat.setOnApplyWindowInsetsListener(nav, null)
-            nav.updatePadding(bottom = 0)
             drawer.updatePadding(left = 0, right = 0)
             guideline.updateLayoutParams<ConstraintLayout.LayoutParams> {
                 guideBegin = 0
@@ -235,7 +232,6 @@ class MainActivity : AppCompatActivity(), MainNavigator {
         if (intent?.getBooleanExtra(EXTRA_FROM_NOTIF, false) == true &&
             mainViewModel.feedGroups.value?.isNotEmpty() == true
         ) {
-            feedAdapter.selectedItemId = Feed.ALL_ENTRIES_ID
             goToEntriesList(mainViewModel.feedGroups.value!![0].feedWithCount.feed)
             bottom_navigation.selectedItemId = R.id.unreads
         }
@@ -245,19 +241,16 @@ class MainActivity : AppCompatActivity(), MainNavigator {
 
         // If it comes from the All feeds App Shortcuts, select the right view
         if (intent?.action.equals(INTENT_ALL) && bottom_navigation.selectedItemId != R.id.all) {
-            feedAdapter.selectedItemId = Feed.ALL_ENTRIES_ID
             bottom_navigation.selectedItemId = R.id.all
         }
 
         // If it comes from the Favorites feeds App Shortcuts, select the right view
         if (intent?.action.equals(INTENT_FAVORITES) && bottom_navigation.selectedItemId != R.id.favorites) {
-            feedAdapter.selectedItemId = Feed.ALL_ENTRIES_ID
             bottom_navigation.selectedItemId = R.id.favorites
         }
 
         // If it comes from the Unreads feeds App Shortcuts, select the right view
         if (intent?.action.equals(INTENT_UNREADS) && bottom_navigation.selectedItemId != R.id.unreads) {
-            feedAdapter.selectedItemId = Feed.ALL_ENTRIES_ID
             bottom_navigation.selectedItemId = R.id.unreads
         }
     }
@@ -274,16 +267,6 @@ class MainActivity : AppCompatActivity(), MainNavigator {
     override fun onPause() {
         super.onPause()
         isInForeground = false
-    }
-
-    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
-        super.onRestoreInstanceState(savedInstanceState)
-        feedAdapter.onRestoreInstanceState(savedInstanceState)
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        feedAdapter.onSaveInstanceState(outState)
     }
 
     override fun onRequestPermissionsResult(

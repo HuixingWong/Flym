@@ -49,8 +49,8 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/drawer_header" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/nav"
+        <androidx.compose.ui.platform.ComposeView
+            android:id="@+id/composeList"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_marginStart="0dp"
@@ -59,11 +59,11 @@
             android:layout_marginBottom="0dp"
             android:clipToPadding="false"
             android:paddingTop="16dp"
-            android:scrollbars="vertical"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/drawer_header" />
+            app:layout_constraintTop_toBottomOf="@+id/drawer_header"
+            />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

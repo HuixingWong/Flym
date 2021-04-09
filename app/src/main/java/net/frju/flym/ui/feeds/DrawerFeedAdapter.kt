@@ -17,46 +17,55 @@
 
 package net.frju.flym.ui.feeds
 
-import android.os.Bundle
-import android.view.View
-import net.frju.flym.data.entities.Feed
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.Card
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import net.frju.flym.data.entities.FeedWithCount
-import org.jetbrains.anko.sdk21.listeners.onClick
+import net.frju.flym.ui.main.MainViewModel
 
+object DrawerFeedAdapter {
+    @Composable
+    @JvmStatic
+    fun JavaCompose() {
 
-private const val STATE_SELECTED_ID = "STATE_SELECTED_ID"
-
-open class FeedAdapter(groups: List<FeedGroup>) : BaseFeedAdapter(groups) {
-
-    var selectedItemId = Feed.ALL_ENTRIES_ID
-        set(newValue) {
-            notifyParentDataSetChanged(true)
-            field = newValue
-        }
-
-    override fun bindItem(itemView: View, feedWithCount: FeedWithCount) {
-        itemView.isSelected = selectedItemId == feedWithCount.feed.id
-
-        itemView.onClick {
-            selectedItemId = feedWithCount.feed.id
-            feedClickListener?.invoke(itemView, feedWithCount)
-        }
     }
+}
 
-    override fun bindItem(itemView: View, group: FeedGroup) {
-        itemView.isSelected = selectedItemId == group.feedWithCount.feed.id
 
-        itemView.onClick {
-            selectedItemId = group.feedWithCount.feed.id
-            feedClickListener?.invoke(itemView, group.feedWithCount)
+@Composable
+fun MainDrawerList(
+    onclick: (FeedWithCount) -> Unit,
+    onLongClick: (FeedWithCount) -> Unit
+) {
+    val viewModel: MainViewModel = viewModel()
+    val feedGroups = viewModel.feedGroups.observeAsState()
+    LazyColumn {
+        feedGroups.value?.forEach { group ->
+            item {
+                Card(Modifier.pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = {
+                            onLongClick(group.feedWithCount)
+                        },
+                        onTap = {
+                            onclick(group.feedWithCount)
+                        }
+                    )
+                }.padding(10.dp)) {
+                    Text(
+                        text = group.feedWithCount.feed.title ?: "no title",
+                        Modifier.padding(start = 20.dp, end = 20.dp, top = 5.dp, bottom = 5.dp)
+                    )
+                }
+            }
         }
-    }
-
-    override fun onSaveInstanceState(savedInstanceState: Bundle) {
-        savedInstanceState.putLong(STATE_SELECTED_ID, selectedItemId)
-    }
-
-    override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
-        selectedItemId = savedInstanceState?.getLong(STATE_SELECTED_ID) ?: Feed.ALL_ENTRIES_ID
     }
 }

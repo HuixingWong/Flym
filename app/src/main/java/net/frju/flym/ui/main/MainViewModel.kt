@@ -34,7 +34,6 @@ class MainViewModel @Inject constructor() : ViewModel() {
     }
 
     val feedGroups = MutableLiveData(mutableListOf<FeedGroup>())
-    val feedsData = mutableListOf<FeedGroup>()
     val toastValue = MutableLiveData<String>()
 
     init {
@@ -54,8 +53,6 @@ class MainViewModel @Inject constructor() : ViewModel() {
                 )
                 // Do not always call notifyParentDataSetChanged to avoid selection loss during refresh
                 if (hasFeedGroupsChanged(feedGroups.value!!, newFeedGroups)) {
-                    feedsData.clear()
-                    feedsData.addAll(newFeedGroups)
                     feedGroups.value = newFeedGroups
                 }
             }

@@ -20,7 +20,6 @@ package net.frju.flym.ui.main
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
 import android.animation.ObjectAnimator.ofFloat
 import android.content.Context
 import android.os.Bundle
@@ -38,7 +37,10 @@ import kotlinx.android.synthetic.main.view_main_containers.view.*
 import net.fred.feedex.R
 import net.frju.flym.utils.onLaidOut
 
-class ContainersLayout @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) : FrameLayout(context, attrs, defStyleAttr) {
+class ContainersLayout @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : FrameLayout(context, attrs, defStyleAttr) {
 
     companion object {
 
@@ -60,7 +62,9 @@ class ContainersLayout @JvmOverloads constructor(context: Context, attrs: Attrib
         }
 
     init {
-        LayoutInflater.from(context).inflate(R.layout.view_main_containers, this, true)
+        LayoutInflater.from(context).inflate(
+            R.layout.view_main_containers, this, true
+        )
     }
 
     fun hasTwoColumns(): Boolean {
@@ -117,8 +121,13 @@ class ContainersLayout @JvmOverloads constructor(context: Context, attrs: Attrib
         frame_details.isVisible = true
 
         frame_details.onLaidOut {
-            val alpha = ObjectAnimator.ofFloat(frame_details, View.ALPHA, 0.4f, 1f)
-            val translate = ofFloat(frame_details, View.TRANSLATION_Y, frame_details.height * 0.3f, 0f)
+            val alpha = ofFloat(
+                frame_details, View.ALPHA, 0.4f, 1f
+            )
+            val translate = ofFloat(
+                frame_details, View.TRANSLATION_Y,
+                frame_details.height * 0.3f, 0f
+            )
 
             AnimatorSet().run {
                 playTogether(alpha, translate)
@@ -139,8 +148,13 @@ class ContainersLayout @JvmOverloads constructor(context: Context, attrs: Attrib
         frame_master.isVisible = true
         frame_details.onLaidOut {
             if (frame_details.isShown) {
-                val alpha = ObjectAnimator.ofFloat(frame_details, View.ALPHA, 1f, 0f)
-                val translate = ofFloat(frame_details, View.TRANSLATION_Y, 0f, frame_details.height * 0.3f)
+                val alpha = ofFloat(
+                    frame_details, View.ALPHA, 1f, 0f
+                )
+                val translate = ofFloat(
+                    frame_details,
+                    View.TRANSLATION_Y,
+                    0f, frame_details.height * 0.3f)
 
                 AnimatorSet().run {
                     playTogether(alpha, translate)
