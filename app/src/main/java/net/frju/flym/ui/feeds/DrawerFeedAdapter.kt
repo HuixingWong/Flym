@@ -17,27 +17,18 @@
 
 package net.frju.flym.ui.feeds
 
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.Card
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.frju.flym.data.entities.FeedWithCount
 import net.frju.flym.ui.main.MainViewModel
-
-object DrawerFeedAdapter {
-    @Composable
-    @JvmStatic
-    fun JavaCompose() {
-
-    }
-}
+import net.frju.flym.ui.views.Button
 
 
 @Composable
@@ -50,19 +41,16 @@ fun MainDrawerList(
     LazyColumn {
         feedGroups.value?.forEach { group ->
             item {
-                Card(Modifier.pointerInput(Unit) {
-                    detectTapGestures(
-                        onLongPress = {
-                            onLongClick(group.feedWithCount)
-                        },
-                        onTap = {
-                            onclick(group.feedWithCount)
-                        }
-                    )
-                }.padding(10.dp)) {
+                Button(onClick = {
+                    onclick(group.feedWithCount)
+                },onLongClick = {
+                    onLongClick(group.feedWithCount)
+                }, Modifier.fillMaxWidth().padding(top = 1.dp, bottom = 1.dp)) {
                     Text(
                         text = group.feedWithCount.feed.title ?: "no title",
-                        Modifier.padding(start = 20.dp, end = 20.dp, top = 5.dp, bottom = 5.dp)
+                        Modifier.padding(
+                            start = 20.dp, end = 20.dp, top = 5.dp, bottom = 5.dp
+                        )
                     )
                 }
             }
